@@ -99,16 +99,14 @@ int Render()
 				if (!Actor)
 					continue;
 
+				int ActorID = mem.Read<int>(Actor + Offsets::Id);
+				auto ActorRootComponet = mem.Read<ULONG_PTR>(Actor + Offsets::RootComponent);
+				auto Actorrelativelocation = mem.Read<Vector3>(ActorRootComponet + Offsets::RelativeLocation);//owninggameinstance.LocalPlayersPTR->LocalPlayers->PlayerController->PlayerState->RootComponent->RelativeLocation_0;
+				auto ActorYaw = mem.Read<float>(ActorRootComponet + Offsets::RelativeRotationYaw);//owninggameinstance.LocalPlayersPTR->LocalPlayers->PlayerController->PlayerState->RootComponent->RelativeLocation_0;
 
-
-				int ActorID = mem.Read<int>(Actor + 0x18);
-				auto ActorRootComponet = mem.Read<ULONG_PTR>(Actor + 0x178);
-				auto Actorrelativelocation = mem.Read<Vector3>(ActorRootComponet + 0xFC);//owninggameinstance.LocalPlayersPTR->LocalPlayers->PlayerController->PlayerState->RootComponent->RelativeLocation_0;
-				auto ActorYaw = mem.Read<float>(ActorRootComponet + 0x200);//owninggameinstance.LocalPlayersPTR->LocalPlayers->PlayerController->PlayerState->RootComponent->RelativeLocation_0;
-
-				auto ActorWieldedItemComponent = mem.Read<ULONG_PTR>(Actor + 0x810);
-				auto ActorCurrentWieldedItem = mem.Read<ULONG_PTR>(ActorWieldedItemComponent + 0x2F8);
-				auto ActorpWieldedItem = mem.Read<ULONG_PTR>(ActorCurrentWieldedItem + 0x568);
+				auto ActorWieldedItemComponent = mem.Read<ULONG_PTR>(Actor + Offsets::WieldedItemComponent);
+				auto ActorCurrentWieldedItem = mem.Read<ULONG_PTR>(ActorWieldedItemComponent + Offsets::CurrentlyWieldedItem);
+				auto ActorpWieldedItem = mem.Read<ULONG_PTR>(ActorCurrentWieldedItem + Offsets::WieldableItemName);
 				std::wstring ActorItemWieleded = mem.Read<textx>(ActorpWieldedItem).word;
 
 				using convert_type = std::codecvt_utf8<wchar_t>;
@@ -133,12 +131,12 @@ int Render()
 				//if (name.find("BP_PlayerPirate_C") != std::string::npos || name.find("BP_TreasureChest_P") != std::string::npos || name.find("BP_BountyRewardSkull_P") != std::string::npos || name.find("BP_ShipwreckTreasureChest_P") != std::string::npos || (name.find("BP_MerchantCrate") != std::string::npos && name.find("Proxy") != std::string::npos) || name.find("BP_SmallShipTemplate_C") != std::string::npos || name.find("BP_LargeShipTemplate_C") != std::string::npos || name.find("Skeleton") != std::string::npos)
 				if (name.find("BP_PlayerPirate_C") != std::string::npos)
 				{
-					auto Actorhealthcomponet = mem.Read<ULONG_PTR>(Actor + Offsets::HealthComponent);
-					float Actorhealth = mem.Read<float>(Actorhealthcomponet + 0xDC);
-					float Actormaxhealth = mem.Read<float>(Actorhealthcomponet + 0xF0);
-					auto ActorPlayerstate = mem.Read<ULONG_PTR>(Actor + Offsets::PlayerState);
-					auto ActorNamePointer = mem.Read<ULONG_PTR>(ActorPlayerstate + Offsets::PlayerName);
-					auto ActorName = mem.Read<textx>(ActorNamePointer);
+					const auto Actorhealthcomponet = mem.Read<ULONG_PTR>(Actor + Offsets::HealthComponent);
+					const float Actorhealth = mem.Read<float>(Actorhealthcomponet + Offsets::CurrentHealth);
+					const float Actormaxhealth = mem.Read<float>(Actorhealthcomponet + Offsets::MaxHealth);
+					const auto ActorPlayerstate = mem.Read<ULONG_PTR>(Actor + Offsets::PlayerState);
+					const auto ActorNamePointer = mem.Read<ULONG_PTR>(ActorPlayerstate + Offsets::PlayerName);
+					const auto ActorName = mem.Read<textx>(ActorNamePointer);
 
 					std::wstring test = ActorName.word;
 
@@ -367,8 +365,16 @@ int Render()
 					ActorArray.push_back(info);
 				}
 
-
-
+				else if (name.find("BP_SmallShipNetProxy") != std::string::npos || name.find("BP_LargeShipNetProxy") != std::string::npos)
+				{
+					info.id = ActorID;
+					info.name = "Ship";
+					info.type = ship;
+					info.Location = Actorrelativelocation;
+					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 300);
+					info.yaw = ActorYaw;
+					ActorArray.push_back(info);
+				}
 				else if (name.find("BP_SmallShipTemplate_C") != std::string::npos || name.find("BP_LargeShipTemplate_C") != std::string::npos)
 				{
 					info.id = ActorID;
@@ -381,14 +387,35 @@ int Render()
 				}
 				else if (name.find("IslandService") != std::string::npos)
 				{
-					IslandDataAsset_PTR = mem.Read<ULONG_PTR>(Actor + 0x04D0);
+					IslandDataAsset_PTR = mem.Read<ULONG_PTR>(Actor + Offsets::IslandDataAsset);
+				}
+				else if (name.find("BP_SunkenCurseArtefact_") != std::string::npos)
+				{
+					info.id = ActorID;
+					if (name.find("Ruby") != std::string::npos)
+					{
+						info.name = "Ruby UnderWater Statue";
+					}
+					else if (name.find("Emerald") != std::string::npos)
+					{
+						info.name = "Emerald UnderWater Statue";
+					}
+					else if (name.find("Sapphire") != std::string::npos)
+					{
+						info.name = "Sapphire UnderWater Statue";
+					}
+					info.type = animalcrate;
+					info.Location = Actorrelativelocation;
+					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 75);
+					ActorArray.push_back(info);
+
 				}
 
 				if (IslandDataAsset_PTR != NULL)
 				{
 					if (name == "BP_TreasureMap_C")
 					{
-						std::string MapTexturePath = "";
+						std::string MapTexturePath;
 						std::vector<Vector2> Marks;
 						if (get_TreasureMap(Actor, &MapTexturePath, &Marks))
 						{
@@ -402,7 +429,7 @@ int Render()
 								{
 									for (int nIndex = 0; nIndex < TreasureLocations_Count; nIndex++)
 									{
-										FTreasureLocationData cTreasureLocation
+										const FTreasureLocationData cTreasureLocation
 											= mem.Read<FTreasureLocationData>(TreasureLocations_PTR
 												+ (nIndex * sizeof(FTreasureLocationData)));
 										if (cTreasureLocation.MapSpaceLocation.x == value.x
@@ -433,12 +460,12 @@ int Render()
 			
 				XMarksTheSpot = new_XMarksTheSpot;
 
-			myLocation = mem.Read<Vector3>(RootComponent + 0xFC);
-			myAngles = mem.Read<Vector3>(CameraManager + 0x50C);
-			Cameralocation = mem.Read<Vector3>(CameraManager + 0x500);
-			CameraFov = mem.Read<float>(CameraManager + 0x518);
-			float myhealth  = mem.Read<float>(HealthComponet + 0xDC);
-			float maxhealth = mem.Read<float>(HealthComponet + 0xF0);
+			myLocation = mem.Read<Vector3>(RootComponent + Offsets::RelativeLocation);
+			myAngles = mem.Read<Vector3>(CameraManager + Offsets::CameraRotation);
+			Cameralocation = mem.Read<Vector3>(CameraManager + Offsets::CameraLocation);
+			CameraFov = mem.Read<float>(CameraManager + Offsets::CameraFOV);
+			auto myhealth  = mem.Read<float>(HealthComponet + Offsets::CurrentHealth);
+			auto maxhealth = mem.Read<float>(HealthComponet + Offsets::MaxHealth);
 			Sleep(2);
 		
 
@@ -500,11 +527,8 @@ int Render()
 						{
 							//FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 0, 0, 255);
 
-							int hi, wi;
-
-							hi = (ScreenPoint.y - headpoint.y) * 2;
-
-							wi = hi * 0.65;
+							int hi = (ScreenPoint.y - headpoint.y) * 2;
+							int wi = hi * 0.65;
 
 							DrawBox(headpoint.x - wi / 2, headpoint.y, wi, hi, 1, 0, 0, 255, 255);
 
@@ -525,8 +549,8 @@ int Render()
 							FillRGB(headpoint.x - wi / 2 - 5, headpoint.y + healthBarDelta, 3, healthBar, r, g, 0, 255);
 
 
-							DrawString((char*)ActorArray.at(i).name.c_str(), headpoint.x - (GetTextWidth(ActorArray.at(i).name.c_str(), pFontSmall) / 2), headpoint.y - 14, 255, 255, 255, pFontSmall);
-							DrawString((char*)ActorArray.at(i).item.c_str(), headpoint.x - (GetTextWidth(ActorArray.at(i).item.c_str(), pFontSmall) / 2), headpoint.y + hi, 255, 255, 255, pFontSmall);
+							DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), headpoint.x - (GetTextWidth(ActorArray.at(i).name.c_str(), pFontSmall) / 2), headpoint.y - 14, 255, 255, 255, pFontSmall);
+							DrawString(const_cast<char*>(ActorArray.at(i).item.c_str()), headpoint.x - (GetTextWidth(ActorArray.at(i).item.c_str(), pFontSmall) / 2), headpoint.y + hi, 255, 255, 255, pFontSmall);
 
 						}
 					
@@ -536,26 +560,26 @@ int Render()
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 165, 42, 42, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
-						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x, ScreenPoint.y, 165, 42, 42, pFontSmall);
+						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 165, 42, 42, pFontSmall);
 				}
 
 				else if (ActorArray.at(i).type == animalcrate)
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 230, 230, 250, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
-						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x, ScreenPoint.y, 230, 230, 250, pFontSmall);
+						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 230, 230, 250, pFontSmall);
 				}
 				else if (ActorArray.at(i).type == gunpowder)
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 0, 0, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
-						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x, ScreenPoint.y, 255, 0, 0, pFontSmall);
+						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 255, 0, 0, pFontSmall);
 				}
 				else if (ActorArray.at(i).type == merchantcrate)
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 165, 0, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
-						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x, ScreenPoint.y, 255, 165, 0, pFontSmall);
+						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 255, 165, 0, pFontSmall);
 				}
 
 
@@ -591,13 +615,13 @@ int Render()
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 0, 255, 255, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
-						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x, ScreenPoint.y, 0, 255, 255, pFontSmall);
+						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 0, 255, 255, pFontSmall);
 				}
 				else if (ActorArray.at(i).rareity == Legendary)
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 105, 180, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
-						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x, ScreenPoint.y, 255, 105, 180, pFontSmall);
+						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 255, 105, 180, pFontSmall);
 				}
 				else if (ActorArray.at(i).rareity == Mythical)
 				{
@@ -622,14 +646,14 @@ int Render()
 					
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 75, 0, 130, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
-						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x, ScreenPoint.y, 75, 0, 130, pFontSmall);
+						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 75, 0, 130, pFontSmall);
 						
 				}
 				else
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 215, 0, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
-						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x, ScreenPoint.y, 255, 215, 05, pFontSmall);
+						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 255, 215, 05, pFontSmall);
 				}
 				ActorArray.erase(ActorArray.begin() + i);
 
